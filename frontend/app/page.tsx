@@ -106,8 +106,13 @@ export default function ChatPage() {
       },
     ]);
 
+    let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/chat';
+    if (apiUrl && !apiUrl.endsWith('/api/chat')) {
+      apiUrl = apiUrl.replace(/\/+$/, '') + '/api/chat';
+    }
+
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/chat', {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
