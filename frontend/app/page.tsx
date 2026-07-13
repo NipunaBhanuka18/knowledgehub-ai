@@ -340,34 +340,14 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Bottom Actions */}
-      <div className="p-5 border-t border-slate-800 bg-[#151821] flex flex-col gap-3.5">
-        <button
-          onClick={handleResetChat}
-          className="w-full bg-[#2563EB] hover:bg-blue-600 text-white font-semibold text-xs py-3 rounded-xl shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center gap-2 hover:-translate-y-0.5"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path></svg>
-          + New Session
-        </button>
-
-        <div className="flex items-center justify-between pt-1 text-xs">
-          <button
-            onClick={handleExportChat}
-            disabled={messages.length <= 1}
-            className="flex items-center gap-1.5 font-medium transition-colors disabled:opacity-40 text-slate-400 hover:text-slate-200"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-            <span>Export Log</span>
-          </button>
-
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono text-slate-500">
-              {sessionId ? `ID:${sessionId.substring(0, 6)}...` : 'Ready'}
-            </span>
-            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-bold shadow-sm">
-              AI
-            </div>
-          </div>
+      {/* Bottom Status */}
+      <div className="p-4 border-t border-slate-800 bg-[#151821] flex items-center justify-between text-xs">
+        <span className="text-[11px] font-mono text-slate-500">
+          {sessionId ? `Session: ${sessionId.substring(0, 8)}...` : 'Status: Ready'}
+        </span>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span className="text-[11px] font-semibold text-emerald-400">Connected</span>
         </div>
       </div>
     </div>
