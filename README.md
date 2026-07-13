@@ -1,8 +1,8 @@
 # KnowledgeHub AI — AWS Bedrock Document Assistant
 
-KnowledgeHub AI is a production-grade, AWS-native document question-answering and compliance assistant designed for enterprise PDF ingestion, retrieval, and citation verification.
+KnowledgeHub AI is a document Q&A demo over PDFs using Amazon Bedrock Knowledge Bases, complete with real-time streaming answers and page-level source citations.
 
-Built on **Amazon Bedrock Knowledge Bases (S3 Vectors)** and powered by **Amazon Nova Lite / Anthropic Claude**, the application streams tokens, snippets, and page-level citations to a modern **Next.js** web interface via **FastAPI Server-Sent Events (SSE)**.
+Built on **Amazon Bedrock Knowledge Bases (S3 Vectors)** and powered by **Amazon Nova Lite / Anthropic Claude**, the application streams tokens, snippets, and verified document references to a clean **Next.js** web interface via **FastAPI Server-Sent Events (SSE)**.
 
 ---
 
@@ -14,9 +14,9 @@ Built on **Amazon Bedrock Knowledge Bases (S3 Vectors)** and powered by **Amazon
 2. **Server-Sent Events (SSE) Streaming**:
    - Stateless **FastAPI** backend streams individual token chunks (`event: token`), document citations (`event: citation`), and lifecycle signals (`event: done`, `event: error`) in real-time.
 3. **Resilient Cloud Engineering**:
-   - Implements **automatic retry-once mechanism on AWS API throttling** (`ThrottlingException` / `429 TooManyRequestsException`) during both retrieval and model generation.
+   - Implements **automatic retry-once mechanism on AWS API throttling** (`ThrottlingException` / `429 TooManyRequestsException`) during both retrieval and model generation without blocking the async event loop (`await asyncio.sleep`).
    - Comprehensive structured logging and friendly user-facing error parsing.
-4. **Stunning & Clean UI Design**:
+4. **Clean & Responsive UI Design**:
    - Built with **Next.js 14**, **React 18**, and **Tailwind CSS**.
    - Features a **Unified Off-White Sidebar (`#F9FAFB`)** with real-time AWS system badges, a **Stark White Main Canvas (`#FFFFFF`)**, dark typography (`#1F2937`), and an **elevated floating input capsule**.
    - **Page-Level Citations Display**: Interactive white citation cards with exact PDF file names, page numbers, and monospace text snippets (`font-mono`).
@@ -34,11 +34,11 @@ knowledgehub-ai/
 │   │   ├── routers/chat.py          # POST /api/chat SSE streaming endpoint & /api/health
 │   │   ├── schemas/chat.py          # Request/Response Pydantic validation schemas
 │   │   ├── services/bedrock_service.py # AWS boto3 integration (retrieve & converse_stream) + retry loop
-│   │   └── utils/logging.py         # Standardized enterprise logging setup
+│   │   └── utils/logging.py         # Standardized logging setup
 │   └── main.py                      # FastAPI application root & CORS middleware
 ├── frontend/
 │   ├── app/
-│   │   ├── layout.tsx               # Next.js root layout with modern Inter font
+│   │   ├── layout.tsx               # Next.js root layout with Inter font
 │   │   ├── page.tsx                 # Full-featured SSE chat interface with citations & theme switch
 │   │   └── globals.css              # Custom Tailwind utilities & micro-animation styles
 │   ├── package.json                 # Frontend dependencies & scripts
@@ -56,7 +56,7 @@ knowledgehub-ai/
 ## 🛠️ Local Setup & Quickstart
 
 ### 1. Backend Setup (FastAPI)
-1. Open a terminal inside the `knowledgehub-ai/` folder:
+1. Open a terminal inside the project folder:
    ```bash
    python -m venv venv
    # On Windows:
@@ -68,15 +68,15 @@ knowledgehub-ai/
    ```bash
    pip install -r requirements.txt
    ```
-3. Copy `.env.example` to `.env` and set your AWS credentials:
+3. Copy `.env.example` to `.env` and configure your AWS credentials:
    ```env
-   AWS_ACCESS_KEY_ID=AKIA...
-   AWS_SECRET_ACCESS_KEY=QTez...
-   AWS_DEFAULT_REGION=us-east-1
-   BEDROCK_KNOWLEDGE_BASE_ID=PAXDDYNBD6
-   BEDROCK_MODEL_ID=amazon.nova-lite-v1:0
+   AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE"
+   AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+   AWS_DEFAULT_REGION="us-east-1"
+   BEDROCK_KNOWLEDGE_BASE_ID="YOUR_KNOWLEDGE_BASE_ID_HERE"
+   BEDROCK_MODEL_ID="amazon.nova-lite-v1:0"
    ```
-4. Run the verification script to test AWS Bedrock connectivity right from your terminal:
+4. Run the verification script to confirm AWS Bedrock connectivity right from your terminal:
    ```bash
    python scripts/verify_kb.py
    ```
@@ -86,12 +86,12 @@ knowledgehub-ai/
    ```
 
 ### 2. Frontend Setup (Next.js)
-1. Open a separate terminal inside `knowledgehub-ai/frontend`:
+1. Open a separate terminal inside `frontend/`:
    ```bash
    cd frontend
    npm install
    ```
-2. Check or create `.env.local` to point to your FastAPI server:
+2. Check or create `.env.local` to point to your local FastAPI server:
    ```env
    NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api/chat
    ```
@@ -103,21 +103,22 @@ knowledgehub-ai/
 
 ---
 
-## 🚀 Deployment Guide (Day 4 Roadmap)
+## 🚀 Deployment Guide
 
 ### Backend Deployment (Render)
-1. Create a new **Web Service** on [Render.com](https://render.com) connected to your repository.
-2. Set **Root Directory** to `knowledgehub-ai` (if monorepo) or deploy `backend/` directly.
+1. Create a new **Web Service** on [Render.com](https://render.com) connected to your repository (`https://github.com/NipunaBhanuka18/knowledgehub-ai.git`).
+2. Set **Root Directory** to blank (`.` or empty), as the repository root directly contains the `backend/` and `frontend/` folders.
 3. Set **Build Command**: `pip install -r requirements.txt`
 4. Set **Start Command**: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
 5. Add your Environment Variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `BEDROCK_KNOWLEDGE_BASE_ID`, `BEDROCK_MODEL_ID`, `AWS_DEFAULT_REGION`).
 
 ### Frontend Deployment (Cloudflare Pages)
-1. Connect your repository to **Cloudflare Pages**.
-2. Set **Root Directory** to `knowledgehub-ai/frontend`.
-3. Set **Build Command**: `npm run build`
-4. Set **Build Output Directory**: `.next`
-5. Add the Environment Variable pointing to your Render backend URL:
+1. Connect your repository (`https://github.com/NipunaBhanuka18/knowledgehub-ai.git`) to **Cloudflare Pages**.
+2. Set **Framework Preset**: `Next.js`
+3. Set **Root Directory**: `frontend`
+4. Set **Build Command**: `npm run build`
+5. Set **Build Output Directory**: `.next`
+6. Add the Environment Variable pointing to your live Render backend URL:
    ```env
    NEXT_PUBLIC_API_URL=https://your-backend-service.onrender.com/api/chat
    ```
@@ -126,4 +127,4 @@ knowledgehub-ai/
 
 ## 🛡️ Verification & Testing
 - **API Health Check**: `GET http://127.0.0.1:8000/api/health` returns operational status, region, and Bedrock Knowledge Base ID.
-- **End-to-End Chat**: Ask legal/tax questions via the frontend quick-test sample buttons to observe live token streaming and verified document citation cards.
+- **End-to-End Chat**: Ask domain questions via the frontend quick-test sample buttons to observe live token streaming and verified page-level citation cards.
