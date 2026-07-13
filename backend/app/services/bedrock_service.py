@@ -47,72 +47,86 @@ class BedrockAgentService:
         model_arn = settings.BEDROCK_MODEL_ID
         active_session_id = session_id.strip() if session_id and session_id.strip() else f"session_{uuid.uuid4().hex[:12]}"
 
-        try:
-            logger.info(f"Initiating AWS Bedrock retrieval for query: '{message[:50]}...' (Session: {active_session_id})")
-            
-            # 1. Retrieve relevant chunks directly from S3 Vectors Knowledge Base (with retry-once on throttling)
-            retrieval_response = None
-            for attempt in range(2):
-                try:
-                    retrieval_response = self.agent_client.retrieve(
-                        knowledgeBaseId=settings.BEDROCK_KNOWLEDGE_BASE_ID,
-                        retrievalQuery={'text': message}
-                    )
-                    break
-                except ClientError as ce:
-                    err_code = ce.response.get('Error', {}).get('Code', '')
-                    if attempt == 0 and err_code in ['ThrottlingException', 'TooManyRequestsException', '429']:
-                        logger.warning(f"Throttling encountered during retrieval ({err_code}). Retrying once asynchronously after 1 second...")
-                        import asyncio; await asyncio.sleep(1.0)
-                        continue
-                    raise
+        import re
+        msg_clean = re.sub(r'[^a-zA-Z0-9\s]', '', message.lower()).strip()
+        greetings = {'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 'how are you', 'howdy', 'yo', 'thanks', 'thank you', 'bye', 'goodbye', 'test', 'ping', 'who are you', 'what can you do', 'help', 'ok', 'okay'}
+        is_greeting = msg_clean in greetings or (len(msg_clean) <= 4 and msg_clean in {'hi', 'hey', 'yo', 'test'})
 
-            retrieval_results = retrieval_response.get('retrievalResults', []) if retrieval_response else []
-            context_blocks = []
-            citations_list = []
-            emitted_keys = set()
+        context_blocks = []
+        citations_list = []
+        emitted_keys = set()
 
-            for idx, res in enumerate(retrieval_results[:4]):
-                text_chunk = res.get('content', {}).get('text', '').strip()
-                if not text_chunk:
-                    continue
-
-                location = res.get('location', {})
-                s3_uri = location.get('s3Location', {}).get('uri', 'document.pdf')
-                filename = s3_uri.split('/')[-1] if '/' in s3_uri else s3_uri
-
-                metadata = res.get('metadata', {})
-                page_num = metadata.get('x-amz-bedrock-kb-page-number') or metadata.get('x-amz-bedrock-kb-document-page-number')
-                if not page_num and isinstance(metadata, dict):
-                    for k, v in metadata.items():
-                        if 'page' in k.lower() and str(v).isdigit():
-                            page_num = v
-                            break
-                if not page_num:
-                    import re
-                    m = re.search(r'\b([1-9][0-9]*[A-Z])\b(?:\s*-\s*G|\s*I|\s*-|\b)|Page\s*([1-9][0-9]*)', text_chunk)
-                    if m: page_num = m.group(1) or m.group(2)
-                    else: page_num = f"{idx+1}"
-
-                context_blocks.append(f"[{idx+1}] Document: {filename} (Page {page_num})\nContent:\n{text_chunk}")
-                
-                cite_key = f"{filename}_{page_num}_{text_chunk[:40]}"
-                if cite_key not in emitted_keys:
-                    emitted_keys.add(cite_key)
-                    citations_list.append({
-                        "document": filename,
-                        "page": page_num,
-                        "snippet": text_chunk
-                    })
-
-            # 2. Prepare Grounded System Prompt for Claude
+        if is_greeting:
+            logger.info(f"Conversational input detected ('{msg_clean}'). Bypassing Bedrock KB vector retrieval.")
             system_prompt = (
-                "You are KnowledgeHub AI, an AWS-native document compliance and question-answering assistant.\n"
-                "Answer the user's question accurately, clearly, and concisely using ONLY the context provided below from the indexed Knowledge Base.\n"
-                "If the answer cannot be found in the context below, clearly state that the document does not contain this information. Do not guess or hallucinate outside the context.\n\n"
-                "--- RETRIEVED KNOWLEDGE BASE CONTEXT ---\n"
-                + ("\n\n".join(context_blocks) if context_blocks else "No relevant document chunks found.")
+                "You are KnowledgeHub AI, a helpful and professional AWS-native document assistant powered by Amazon Bedrock Knowledge Bases and Anthropic Claude.\n"
+                "The user is greeting you or making casual conversation. Respond warmly, politely, and briefly. Welcome them and invite them to ask any questions about their indexed legal, tax, or Gazette PDF documents."
             )
+        else:
+            try:
+                logger.info(f"Initiating AWS Bedrock retrieval for query: '{message[:50]}...' (Session: {active_session_id})")
+                retrieval_response = None
+                for attempt in range(2):
+                    try:
+                        retrieval_response = self.agent_client.retrieve(
+                            knowledgeBaseId=settings.BEDROCK_KNOWLEDGE_BASE_ID,
+                            retrievalQuery={'text': message}
+                        )
+                        break
+                    except ClientError as ce:
+                        err_code = ce.response.get('Error', {}).get('Code', '')
+                        if attempt == 0 and err_code in ['ThrottlingException', 'TooManyRequestsException', '429']:
+                            logger.warning(f"Throttling encountered during retrieval ({err_code}). Retrying once asynchronously after 1 second...")
+                            import asyncio; await asyncio.sleep(1.0)
+                            continue
+                        raise
+
+                retrieval_results = retrieval_response.get('retrievalResults', []) if retrieval_response else []
+
+                for idx, res in enumerate(retrieval_results[:4]):
+                    text_chunk = res.get('content', {}).get('text', '').strip()
+                    if not text_chunk:
+                        continue
+
+                    location = res.get('location', {})
+                    s3_uri = location.get('s3Location', {}).get('uri', 'document.pdf')
+                    filename = s3_uri.split('/')[-1] if '/' in s3_uri else s3_uri
+
+                    metadata = res.get('metadata', {})
+                    page_num = metadata.get('x-amz-bedrock-kb-page-number') or metadata.get('x-amz-bedrock-kb-document-page-number')
+                    if not page_num and isinstance(metadata, dict):
+                        for k, v in metadata.items():
+                            if 'page' in k.lower() and str(v).isdigit():
+                                page_num = v
+                                break
+                    if not page_num:
+                        m = re.search(r'\b([1-9][0-9]*[A-Z])\b(?:\s*-\s*G|\s*I|\s*-|\b)|Page\s*([1-9][0-9]*)', text_chunk)
+                        if m: page_num = m.group(1) or m.group(2)
+                        else: page_num = f"{idx+1}"
+
+                    context_blocks.append(f"[{idx+1}] Document: {filename} (Page {page_num})\nContent:\n{text_chunk}")
+                    
+                    cite_key = f"{filename}_{page_num}_{text_chunk[:40]}"
+                    if cite_key not in emitted_keys:
+                        emitted_keys.add(cite_key)
+                        citations_list.append({
+                            "document": filename,
+                            "page": page_num,
+                            "snippet": text_chunk
+                        })
+
+                system_prompt = (
+                    "You are KnowledgeHub AI, an AWS-native document compliance and question-answering assistant.\n"
+                    "Answer the user's question accurately, clearly, and concisely using ONLY the context provided below from the indexed Knowledge Base.\n"
+                    "If the answer cannot be found in the context below, clearly state that the document does not contain this information. Do not guess or hallucinate outside the context.\n\n"
+                    "--- RETRIEVED KNOWLEDGE BASE CONTEXT ---\n"
+                    + ("\n\n".join(context_blocks) if context_blocks else "No relevant document chunks found.")
+                )
+            except Exception as e:
+                logger.error(f"Error during Bedrock KB retrieval: {str(e)}", exc_info=True)
+                system_prompt = (
+                    "You are KnowledgeHub AI. An error occurred while retrieving document context from the vector knowledge base. Inform the user gracefully."
+                )
 
             # 3. Stream tokens from Amazon Bedrock Runtime (with retry-once on throttling)
             logger.info(f"Streaming generation with Bedrock model: {model_arn}")
