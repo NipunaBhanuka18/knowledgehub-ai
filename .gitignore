@@ -1,0 +1,29 @@
+# Python / FastAPI
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+env/
+.env
+*.log
+
+# Next.js / Node
+node_modules/
+.next/
+out/
+dist/
+build/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+AGENTS.md
+CLAUDE.md
