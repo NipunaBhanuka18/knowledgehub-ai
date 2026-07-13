@@ -117,7 +117,7 @@ knowledgehub-ai/
 2. Set **Framework Preset**: `Next.js`
 3. Set **Root Directory**: `frontend`
 4. Set **Build Command**: `npm run build`
-5. Set **Build Output Directory**: `.next`
+5. Set **Build Output Directory**: `out`
 6. Add the Environment Variable pointing to your live Render backend URL:
    ```env
    NEXT_PUBLIC_API_URL=https://your-backend-service.onrender.com/api/chat
